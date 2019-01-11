@@ -30,7 +30,6 @@ func Open() (db *Gobdb, err error) {
 func (db *Gobdb) Close() error {
 	db.closed = true
 	return nil
-	//return errors.New("NOT IMPLEMENTED")
 }
 
 // Put data into database with associated key
@@ -47,7 +46,7 @@ func (db *Gobdb) Get(key string) (interface{}, error) {
 	if db.closed {
 		return nil, ErrClosed
 	}
-	return nil, errors.New("NOT IMPLEMENTED")
+	return db.store[key], nil
 }
 
 // List all data within the database. Note this is a resource heavy operation.
@@ -69,5 +68,6 @@ func (db *Gobdb) Delete(key string) error {
 	if db.closed {
 		return ErrClosed
 	}
-	return errors.New("NOT IMPLEMENTED")
+	delete(db.store, key)
+	return nil
 }
