@@ -44,4 +44,30 @@ func TestGobdbPutAndList(t *testing.T) {
 	}
 }
 
-// TODO: Actions on a already closed database?
+func TestActOnClosedDb(t *testing.T) {
+	db, _ := Open()
+
+	testdata := map[string]interface{}{
+		"aaa": "111",
+		"bb":  345,
+	}
+
+	for k, v := range testdata {
+		db.Put(k, v)
+	}
+
+	db.Close()
+
+	if err := db.Put("cc", 123); err != ErrClosed {
+		t.Errorf("Put should return error")
+	}
+	if _, err := db.Get("aaa"); err != ErrClosed {
+		t.Errorf("Get should return error")
+	}
+	if _, err := db.List(); err != ErrClosed {
+		t.Errorf("List should return error")
+	}
+	if err := db.Delete("bb"); err != ErrClosed {
+		t.Errorf("Delete should return error")
+	}
+}
