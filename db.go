@@ -1,20 +1,42 @@
 // Package gobdb is a put:1/get:1/list:n/delete:1 key:struct{} database using go's encoding/gob.
 package gobdb
 
-import "errors"
+import (
+	"encoding/gob"
+	"errors"
+	"io"
+	"os"
+)
 
 // Gobdb is a structure holding the db's data
 type Gobdb struct {
 	store  map[string]interface{}
 	closed bool
+	file   *os.File
 }
 
 // ErrClosed : The DB is already closed. No further action is allowed.
 var ErrClosed = errors.New("DB already closed")
 
-// OpenFile a gobdb file for read/write.
+// OpenFile opens a gobdb file for read/write.
 func OpenFile(filename string) (db *Gobdb, err error) {
-	return nil, errors.New("NOT YET IMPLEMENTED")
+	file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0755)
+	if err != nil {
+		return nil, err
+	}
+
+	db = &Gobdb{
+		store:  make(map[string]interface{}),
+		closed: false,
+		file:   file,
+	}
+	dec := gob.NewDecoder(file)
+	err = dec.Decode(&db.store)
+	if err != nil && err != io.EOF {
+		file.Close()
+		return nil, err
+	}
+	return db, nil
 }
 
 // Open an in-memory gobdb database. This is not persistent in this case
@@ -28,7 +50,18 @@ func Open() (db *Gobdb, err error) {
 
 // Close and flush the changes to the Gobdb file.
 func (db *Gobdb) Close() error {
+	if db.file != nil {
+		defer db.file.Close()
+		db.file.Truncate(0)
+		db.file.Seek(0, 0)
+		enc := gob.NewEncoder(db.file)
+		if err := enc.Encode(db.store); err != nil {
+			return err
+		}
+	}
+
 	db.closed = true
+	db.file = nil
 	return nil
 }
 

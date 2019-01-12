@@ -1,6 +1,8 @@
 package gobdb
 
 import (
+	"io/ioutil"
+	"os"
 	"reflect"
 	"testing"
 )
@@ -112,5 +114,66 @@ func TestActOnClosedDb(t *testing.T) {
 	}
 	if err := db.Delete("bb"); err != ErrClosed {
 		t.Errorf("Delete should return error")
+	}
+}
+
+func TestFileDbActions(t *testing.T) {
+	f, err := ioutil.TempFile("", "gobdb")
+	if err != nil {
+		t.Errorf("Cannot create Tmp file for test: %s", err)
+		return
+	}
+	fname := f.Name()
+	defer os.Remove(fname)
+
+	f.Close()
+
+	db, err := OpenFile(fname)
+	if err != nil {
+		t.Errorf("Cannot open Tmp file for test: %s", err)
+		return
+	}
+
+	db.Put("aaa", "111")
+	db.Put("bb", 345)
+	db.Close()
+
+	// Open again and list the content
+	db, _ = OpenFile(fname)
+	testAssertDbContent(t, db, map[string]interface{}{
+		"aaa": "111",
+		"bb":  345,
+	})
+
+	db.Put("ccc", false)
+	db.Close()
+
+	db, _ = OpenFile(fname)
+	testAssertDbContent(t, db, map[string]interface{}{
+		"aaa": "111",
+		"bb":  345,
+		"ccc": false,
+	})
+
+	db.Delete("bb")
+	db.Close()
+
+	db, _ = OpenFile(fname)
+	testAssertDbContent(t, db, map[string]interface{}{
+		"aaa": "111",
+		"ccc": false,
+	})
+	db.Close()
+}
+
+func testAssertDbContent(t *testing.T, db *Gobdb, expected map[string]interface{}) {
+	res, err := db.List()
+	if err != nil {
+		t.Errorf("Error listing the database: %s", err)
+		return
+	}
+	if !reflect.DeepEqual(expected, res) {
+		t.Errorf("The database is not returning correct data: %+v", res)
+		return
 	}
 }
